@@ -74,10 +74,14 @@ prop = prop.test(Baltimore$n_unsolve, Baltimore$n_total) %>% broom::tidy() %>%
 
 Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and  unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
 ```{r prop.test_dataset}
-city %>% 
+prop_vec = function(data) {
+  prop.test(data$n_unsolve, data$n_total)
+}
+
+city_nest = city %>% filter(city == "Baltimore") 
   nest(n_unsolve:n_total) %>% 
-  mutate(prop = map(data, ~prop.test),
-         outcome = broom::tidy(prop)) %>% View()
-  
-```
+ 
+is.list(city_nest$data)
+map(city_nest$data, prop_vec)
+
 
