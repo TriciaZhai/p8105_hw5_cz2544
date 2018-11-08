@@ -58,8 +58,8 @@ This dataset contains `r nrow(murder)` rows and `r ncol(murder)` columns, with e
 Create a city_state variable (e.g. “Baltimore, MD”) and then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is “Closed without arrest” or “Open/No arrest”).
 ```{r summarize_city}
 city = murder %>% 
-  mutate(city_state = str_c("city", "state", sep = ",")) %>% 
-  group_by(city, disposition) %>% 
+  mutate(city_state = str_c(city, state, sep = ",")) %>% 
+  group_by(city_state, disposition) %>% 
   summarise(n = n()) %>% 
   spread(disposition, n) %>% 
   mutate(n_unsolve = `Closed without arrest` + `Open/No arrest`, n_total = `Closed by arrest`+`Closed without arrest`+ `Open/No arrest`)
@@ -74,14 +74,32 @@ prop = prop.test(Baltimore$n_unsolve, Baltimore$n_total) %>% broom::tidy() %>%
 
 Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and  unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
 ```{r prop.test_dataset}
-prop_vec = function(data) {
-  prop.test(data$n_unsolve, data$n_total)
+prop_t = function(df) {
+  if (df$n_unsolve*df$n_total == 0) {
+    stop("Argument x should be numeric")
+  } 
+  prop.test(df$n_unsolve, df$n_total)
 }
 
-city_nest = city %>% filter(city == "Baltimore") 
-  nest(n_unsolve:n_total) %>% 
+city_nest = city %>% 
+  group_by(city) %>% 
+  nest() %>% 
+  mutate(p = map(data, ~prop_t(df = .x))),
+         outcome = map(p, broom::tidy))
+  
+  
  
 is.list(city_nest$data)
-map(city_nest$data, prop_vec)
+
+
+prop_t(city_nest$data[[1]])
+map(city_nest$data, prop_t)
+```
+
+
+
+
+
+
 
 
