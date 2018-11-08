@@ -7,7 +7,12 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+
+set.seed(1)
 ```
+
 
 ## Problem 1
 Create a tidy dataframe containing data from all participants, including the subject ID, arm, and observations over time:
@@ -17,8 +22,8 @@ Iterate over file names and read in data for each subject using purrr::map and s
 Tidy the result; manipulate file names to include control arm and subject ID, make sure weekly observations are “tidy”, and do any other tidying that’s necessary
 Make a spaghetti plot showing observations on each subject over time, and comment on differences between groups.
 
-```{r}
-
+```{r load_data}
+data = read.csv(file = "./data/con_01.csv")
 ```
 
 ## Problem 2
