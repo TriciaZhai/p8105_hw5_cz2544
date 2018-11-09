@@ -60,9 +60,11 @@ Create a city_state variable (e.g. “Baltimore, MD”) and then summarize withi
 city = murder %>% 
   mutate(city_state = str_c(city, state, sep = ",")) %>% 
   group_by(city_state, disposition) %>% 
-  summarise(n = n()) %>% 
-  spread(disposition, n) %>% 
-  mutate(n_unsolve = `Closed without arrest` + `Open/No arrest`, n_total = `Closed by arrest`+`Closed without arrest`+ `Open/No arrest`)
+  summarise(n = n()) %>%
+  spread(disposition, n) %>%  
+  replace_na(list('Closed by arrest' = 0, 'Closed without arrest' = 0, 'Open/No arrest' = 0)) %>% 
+  mutate(n_unsolve = `Closed without arrest` + `Open/No arrest`,
+         n_total = `Closed by arrest` + `Closed without arrest` + `Open/No arrest`)
 ```
 
 For the city of Baltimore, MD, use the prop.test function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the broom::tidy to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
@@ -75,24 +77,29 @@ prop = prop.test(Baltimore$n_unsolve, Baltimore$n_total) %>% broom::tidy() %>%
 Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and  unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
 ```{r prop.test_dataset}
 prop_t = function(df) {
-  if (df$n_unsolve*df$n_total == 0) {
-    stop("Argument x should be numeric")
-  } 
   prop.test(df$n_unsolve, df$n_total)
 }
 
 city_nest = city %>% 
-  group_by(city) %>% 
-  nest() %>% 
-  mutate(p = map(data, ~prop_t(df = .x))),
-         outcome = map(p, broom::tidy))
-  
-  
+  replace_na(list(n_unsolve = 0, n_total = 0)) %>% 
+ # filter(n_unsolve*n_total != 0) %>% 
+  nest(n_unsolve, n_total) %>% 
+  mutate( p = map(data, prop_t),
+          outcome = map(p, broom::tidy))%>% 
+  select(city_state, outcome) %>%
+  unnest() %>% 
+  select(city_state, estimate, conf.low, conf.high)
+   
+
+       
  
+  
+  
+
 is.list(city_nest$data)
 
-
-prop_t(city_nest$data[[1]])
+pull(city_nest$p)
+prop_t(city_nest$data[[6]])
 map(city_nest$data, prop_t)
 ```
 
