@@ -44,11 +44,6 @@ comment: The observation value of experiment group increased along with the time
 
 ## Problem 2
 
-
-
-
-Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
-
 ```{r load_homicide_data}
 murder = read.csv("homicide-data.csv")
 ```
@@ -58,14 +53,15 @@ This dataset contains `r nrow(murder)` rows and `r ncol(murder)` columns, with e
 Create a city_state variable (e.g. “Baltimore, MD”) and then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is “Closed without arrest” or “Open/No arrest”).
 ```{r summarize_city}
 city = murder %>% 
-  mutate(city_state = str_c(city, state, sep = ",")) %>% 
-  group_by(city_state, disposition) %>% 
+  mutate(city_state = str_c(city, state, sep = ", ")) %>% 
+  group_by(city, city_state, disposition) %>% 
   summarise(n = n()) %>%
   spread(disposition, n) %>%  
-  replace_na(list('Closed by arrest' = 0, 'Closed without arrest' = 0, 'Open/No arrest' = 0)) %>% 
+  mutate_if(is.integer, funs(replace(., is.na(.), 0))) %>% 
   mutate(n_unsolve = `Closed without arrest` + `Open/No arrest`,
          n_total = `Closed by arrest` + `Closed without arrest` + `Open/No arrest`)
 ```
+comment: After searching, Tulsa is located in OK istead of AL, the Tulsa,AL is a misclasification. I decide to add this observation into the Tulsa,OK in following analysis.
 
 For the city of Baltimore, MD, use the prop.test function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the broom::tidy to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
 ```{r prop.test_Baltimore}
@@ -80,30 +76,26 @@ prop_t = function(df) {
   prop.test(df$n_unsolve, df$n_total)
 }
 
-city_nest = city %>% 
-  replace_na(list(n_unsolve = 0, n_total = 0)) %>% 
- # filter(n_unsolve*n_total != 0) %>% 
+city_nest = murder %>% 
+  group_by(city, disposition) %>% 
+  summarise(n = n()) %>%
+  spread(disposition, n) %>%
+  mutate_if(is.integer, funs(replace(., is.na(.), 0))) %>% 
+  mutate(n_unsolve = `Closed without arrest` + `Open/No arrest`,
+         n_total = `Closed by arrest` + `Closed without arrest` + `Open/No arrest`)%>% 
   nest(n_unsolve, n_total) %>% 
   mutate( p = map(data, prop_t),
           outcome = map(p, broom::tidy))%>% 
-  select(city_state, outcome) %>%
+  select(city, outcome) %>%
   unnest() %>% 
-  select(city_state, estimate, conf.low, conf.high)
-   
-
-       
- 
-  
-  
-
-is.list(city_nest$data)
-
-pull(city_nest$p)
-prop_t(city_nest$data[[6]])
-map(city_nest$data, prop_t)
+  select(city, estimate, starts_with("con"))
 ```
 
 
+Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
+```{r plot_CI}
+
+```
 
 
 
